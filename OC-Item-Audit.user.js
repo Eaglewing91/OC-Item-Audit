@@ -1,7 +1,9 @@
 // ==UserScript==
 // @name         OC Item Audit
 // @namespace    https://www.torn.com/profiles.php?XID=571041
-// @version      1.0.0
+// @version      1.0.1
+// @updateURL    https://raw.githubusercontent.com/Eaglewing91/OC-Item-Audit/main/OC-Item-Audit.user.js
+// @downloadURL  https://raw.githubusercontent.com/Eaglewing91/OC-Item-Audit/main/OC-Item-Audit.user.js
 // @description  Audit completed Torn OC item losses, consumption, ownership and estimated costs in a clean dashboard.
 // @author       Eaglewing [571041]
 // @match        https://www.torn.com/factions.php*
@@ -18,7 +20,7 @@
 
 (function () {
     'use strict';
-    const VERSION = '1.0.0';
+    const VERSION = '1.0.1';
     // Local, per-userscript storage prefix. No API key is bundled in this file.
     const PREFIX = 'eaglewing_oc_item_audit_v1_';
     const API = 'https://api.torn.com/v2/';
