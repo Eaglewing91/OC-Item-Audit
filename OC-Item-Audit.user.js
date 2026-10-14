@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OC Item Audit
 // @namespace    https://www.torn.com/profiles.php?XID=571041
-// @version      1.0.1
+// @version      1.0.2
 // @updateURL    https://raw.githubusercontent.com/Eaglewing91/OC-Item-Audit/main/OC-Item-Audit.user.js
 // @downloadURL  https://raw.githubusercontent.com/Eaglewing91/OC-Item-Audit/main/OC-Item-Audit.user.js
 // @description  Audit completed Torn OC item losses, consumption, ownership and estimated costs in a clean dashboard.
@@ -15,12 +15,21 @@
 // @grant        GM.registerMenuCommand
 // @connect      api.torn.com
 // @run-at       document-idle
+// @noframes
 // @license      MIT
 // ==/UserScript==
 
+// Terms of Service
+// | Data Storage                 | Data Sharing | Purpose of Use                          | Key Storage & Sharing             | Key Access Level                           |
+// |------------------------------|--------------|-----------------------------------------|-----------------------------------|--------------------------------------------|
+// | No / Only locally (key and   | Nobody       | Non malicious statistical analysis      | Stored locally / Not shared; sent | Minimal (faction/basic, faction/crimes,    |
+// | price caches in userscript   |              | (faction OC item loss and cost audit)   | only to api.torn.com              | torn/items) + faction position with API    |
+// | storage; OC history in memory|              |                                         |                                   | access                                     |
+// | only while a report is open) |              |                                         |                                   |                                            |
+
 (function () {
     'use strict';
-    const VERSION = '1.0.1';
+    const VERSION = '1.0.2';
     // Local, per-userscript storage prefix. No API key is bundled in this file.
     const PREFIX = 'eaglewing_oc_item_audit_v1_';
     const API = 'https://api.torn.com/v2/';
@@ -204,7 +213,8 @@
     let key = '', catalog = { at: 0, items: {} }, ttPrices = {}, preferTT = true;
     let report = null, busy = false, controller = null, lastRequest = 0, detailPage = 0;
     let host, root, panel, launcher;
-    let sortBy = 'cost', sortDirection = -1, currentView = 'overview';
+    let sortBy = 'cost', sortDirection = -1, currentView = 'overview', launcherPos = 'bottom-right';
+    const LAUNCHER_POSITIONS = ['bottom-right', 'bottom-left', 'middle-right'];
     const read = async (name, fallback) => {
         try { return await GM.getValue(PREFIX + name, fallback); } catch (_) { return fallback; }
     };
@@ -373,7 +383,7 @@
         const owners = { faction: 0, user: 0, unknown: 0 };
         for (const rec of result.records) owners[rec.owner]++;
         const totalEvents = result.records.length;
-        const fraction = key => totalEvents ? owners[key] * 100 / totalEvents : 0;
+        const fraction = type => totalEvents ? owners[type] * 100 / totalEvents : 0;
         $('#ownership').innerHTML = '<div class="ownership-bar" title="Faction / member / unknown ownership">' +
             '<span class="ownership-faction" style="width:' + fraction('faction') + '%"></span>' +
             '<span class="ownership-member" style="width:' + fraction('user') + '%"></span>' +
@@ -512,6 +522,10 @@
         updateView();
         $('#main-scroll').scrollTop = 0;
     }
+    function applyLauncherPos() {
+        if (!launcher) return;
+        LAUNCHER_POSITIONS.forEach(pos => launcher.classList.toggle('pos-' + pos, pos === launcherPos));
+    }
     function open() { panel.hidden = false; $('#backdrop').hidden = false; launcher.hidden = true; $('#close').focus(); }
     function close() { panel.hidden = true; $('#backdrop').hidden = true; launcher.hidden = false; launcher.focus(); }
 
@@ -529,6 +543,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 button, select { -webkit-tap-highlight-color: transparent; }
 #launcher { position: fixed; right: 22px; bottom: 74px; z-index: 2147483646; display: flex; align-items: center; gap: 10px; padding: 10px 15px 10px 10px; color: #fff; font-size: 12px; font-weight: 750; letter-spacing: .015em; background: #a52a3c; border: 1px solid #eb6878; border-radius: 14px; box-shadow: 0 12px 38px #0009, 0 0 0 3px #9e203a18; }
 #launcher:hover { background: #bc354a; transform: translateY(-2px); }
+#launcher.pos-bottom-left { right: auto; left: 22px; }
+#launcher.pos-middle-right { bottom: auto; top: 50%; transform: translateY(-50%); }
+#launcher.pos-middle-right:hover { transform: translateY(calc(-50% - 2px)); }
 .launcher-mark, .brand-mark { display: inline-grid; place-items: center; flex-shrink: 0; background: linear-gradient(145deg,#fc6678,#9b2037); color: #fff; font-weight: 850; letter-spacing: -.06em; border: 1px solid #ffffff20; }
 .launcher-mark { width: 28px; height: 28px; border-radius: 9px; background: #ffffff1d; }
 #backdrop { position: fixed; inset: 0; z-index: 2147483645; background: #03060bc9; backdrop-filter: blur(5px); }
@@ -733,6 +750,7 @@ tbody tr:last-child td { border-bottom:0; }
     </tr></thead><tbody id="items"></tbody></table></div><div class="table-foot">Unit prices are current estimates, not historical purchase prices.</div></div></section>
    <section id="activity-view" data-view-panel="activity" hidden><div class="table-card section-card"><div class="table-intro"><div><h2>OC item activity</h2><p>Every recorded loss or non-reusable item consumption, grouped by individual slot.</p></div><span class="section-tag">100 records / page</span></div><div class="table-scroll"><table aria-label="OC item activity"><thead><tr><th>Executed (TCT)</th><th>Organized crime</th><th>Slot / member</th><th>Item</th><th>Event</th><th>Owner</th><th>Notes</th></tr></thead><tbody id="details-body"></tbody></table></div><div class="table-foot"><span id="detail-count">0 records</span><div class="pager"><button id="prev" class="btn btn-outline">← Previous</button><button id="next" class="btn btn-outline">Next →</button></div></div></div></section>
    <section id="settings" data-view-panel="settings" hidden><div class="settings-grid"><div class="settings-card section-card"><div class="eyebrow">Connection</div><h2>Torn API key</h2><p>Use your own key with <strong>faction/crimes</strong>, <strong>faction/basic</strong> and <strong>torn/items</strong> permissions. Faction access depends on your position. Your key is saved locally in your userscript manager (not in this script or on GitHub). It is not encrypted by this script, and is sent only to api.torn.com over HTTPS in the Authorization header. Use Remove key to clear it.</p><div class="row"><input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="Enter your 16-character Torn API key" aria-label="Torn API key" data-lock><button id="save-key" class="btn btn-primary" data-lock>Save key</button><button id="forget-key" class="btn btn-danger" data-lock>Remove key</button><a href="https://www.torn.com/preferences.php#tab=api" target="_blank" rel="noopener noreferrer">Create a key ↗</a></div></div>
+    <div class="settings-card section-card"><div class="eyebrow">Display</div><h2>Launcher position</h2><p>Move the OC Item Audit button if it covers Torn's chat or other buttons on your screen.</p><div class="row"><select id="launcher-pos" aria-label="Launcher position"><option value="bottom-right">Bottom right</option><option value="bottom-left">Bottom left</option><option value="middle-right">Middle right</option></select></div></div>
     <div class="settings-card section-card"><div class="eyebrow">Valuation</div><h2>Item prices & TornTools</h2><p>Torn API market values are used by default. You can import item unit prices currently visible on the Items page through TornTools; those values are preferred when enabled. The tracker cannot access TornTools' private extension storage.</p><label class="checkbox-label"><input id="prefer-tt" type="checkbox" checked data-lock>Prefer imported TornTools unit prices</label><div class="settings-subheading">Price management</div><div class="row"><button id="import-tt" class="btn" data-lock>Import visible prices</button><button id="reload-tt" class="btn" data-lock>Reload imported prices</button><button id="refresh-prices" class="btn" data-lock>Refresh API prices</button><button id="clear-prices" class="btn btn-danger" data-lock>Clear price cache</button></div><p class="note" style="margin-top:13px">To import TornTools prices, open the Items page, select an inventory category with visible unit values, then use Import visible prices here. Each category must be imported separately. Imported and API price data expire after 6 hours.</p></div>
     <div class="settings-card section-card"><div class="eyebrow">Methodology</div><h2>How costs are calculated</h2><p>Only Torn's explicit <strong>lost</strong> outcomes and <strong>used</strong> outcomes for non-reusable item requirements count as depleted items. Unused items and reusable items do not contribute to the estimates. The total OC count still includes completed crimes without item losses.</p><p style="margin:0">Historical OC data is fetched through sequential, read-only API requests. Owner and crime filters change the item records and costs, but not the completed OC count.</p></div></div></section>
   </div></main>
@@ -742,7 +760,18 @@ tbody tr:last-child td { border-bottom:0; }
         launcher.addEventListener('click', open);
         $('#close').addEventListener('click', close);
         $('#backdrop').addEventListener('click', close);
-        root.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+        root.addEventListener('keydown', e => {
+            if (panel.hidden) return;
+            if (e.key === 'Escape') return close();
+            if (e.key !== 'Tab') return;
+            // Keep keyboard focus inside the open dialog.
+            const focusable = [...panel.querySelectorAll('button, input, select, a[href], [tabindex]:not([tabindex="-1"])')]
+                .filter(el => !el.disabled && el.getClientRects().length);
+            if (!focusable.length) return;
+            const first = focusable[0], last = focusable[focusable.length - 1], active = root.activeElement;
+            if (e.shiftKey && (active === first || !panel.contains(active))) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && (active === last || !panel.contains(active))) { e.preventDefault(); first.focus(); }
+        });
         root.querySelectorAll('[data-view]').forEach(el => el.addEventListener('click', () => showView(el.dataset.view)));
         root.querySelectorAll('[data-jump]').forEach(el => el.addEventListener('click', () => showView(el.dataset.jump)));
         $('#fetch').addEventListener('click', runReport);
@@ -769,6 +798,12 @@ tbody tr:last-child td { border-bottom:0; }
             try { await save('key', ''); key = ''; $('#key').value = ''; report = null; render(); updateConnection(); message('API key removed.'); }
             catch (_) { message('Could not remove the API key.', true); }
         });
+        $('#launcher-pos').addEventListener('change', async () => {
+            launcherPos = LAUNCHER_POSITIONS.includes($('#launcher-pos').value) ? $('#launcher-pos').value : 'bottom-right';
+            applyLauncherPos();
+            try { await save('launcherPos', launcherPos); message('Launcher position saved.'); }
+            catch (_) { message('Could not save launcher position.', true); }
+        });
         $('#prefer-tt').addEventListener('change', async () => {
             preferTT = $('#prefer-tt').checked;
             try { await save('preferTT', preferTT); render(); } catch (_) { message('Could not save price preference.', true); }
@@ -791,6 +826,7 @@ tbody tr:last-child td { border-bottom:0; }
         $('#next').addEventListener('click', () => { detailPage++; render(); });
         $('#export-summary').addEventListener('click', exportSummary); $('#export-details').addEventListener('click', exportDetails);
         preset(30); $('#key').value = key; $('#prefer-tt').checked = preferTT;
+        $('#launcher-pos').value = launcherPos; applyLauncherPos();
         updateConnection(); showView(key ? 'overview' : 'settings');
         if (location.pathname === '/item.php') message('TornTools import: open an inventory category, then choose Import visible prices in Settings.');
         if (typeof GM.registerMenuCommand === 'function') GM.registerMenuCommand('Open OC Item Audit', open);
@@ -801,6 +837,8 @@ tbody tr:last-child td { border-bottom:0; }
         if (!catalog || typeof catalog.items !== 'object' || !catalog.items || typeof catalog.at !== 'number') catalog = { at: 0, items: {} };
         ttPrices = await read('ttPrices', {}); if (!ttPrices || typeof ttPrices !== 'object') ttPrices = {};
         preferTT = (await read('preferTT', true)) === true;
+        const pos = await read('launcherPos', 'bottom-right');
+        launcherPos = LAUNCHER_POSITIONS.includes(pos) ? pos : 'bottom-right';
         buildUI();
     }
     init().catch(() => console.error('[OC Item Audit] Could not initialize. Check userscript permissions.'));

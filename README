@@ -2,7 +2,7 @@
 
 **A clean, read-only Organized Crime item audit dashboard for [Torn](https://www.torn.com/).**
 
-**Version:** 1.0.0 (first public release)  
+**Version:** 1.0.2  
 **Author:** Eaglewing [571041]  
 **Licence:** [MIT](LICENSE)  
 **Dependencies:** A userscript manager, a personal Torn API key. TornTools is optional.
@@ -40,6 +40,12 @@ https://www.torn.com/organizedcrimes.php*
 https://www.torn.com/item.php*
 ```
 
+## Terms of Service
+
+| Data Storage | Data Sharing | Purpose of Use | Key Storage & Sharing | Key Access Level |
+| --- | --- | --- | --- | --- |
+| No / Only locally (API key and price caches in userscript storage; OC history held in memory only while a report is open) | Nobody | Non malicious statistical analysis (faction OC item loss and cost auditing) | Stored locally / Not shared, sent only to api.torn.com | Minimal (`faction/basic`, `faction/crimes`, `torn/items`), plus a faction position with API access |
+
 ## Torn API requirements
 
 Each user supplies **their own** 16-character Torn API key. The key must permit access to: (Minimal API is sufficient)
@@ -60,7 +66,7 @@ A key with these endpoint selections is not a guarantee of access: Torn may rest
 
 The script stores the key in the **userscript manager's persistent storage for this script**, inside the user's local browser profile, using `GM.setValue` and retrieves it with `GM.getValue`.
 
-The key's internal storage name in v1.0.0 is:
+The key's internal storage name is:
 
 ```text
 eaglewing_oc_item_audit_v1_key
@@ -146,6 +152,18 @@ Exports are generated **locally in the browser**. They are not uploaded by this 
 **Prices are unavailable.** Refresh API prices, or import eligible visible TornTools values. Missing prices are never estimated silently.
 
 **A report is slow or partial.** Long history requests are deliberately paced to protect API usage and completeness. Choose a shorter range or retry.
+
+## Changelog
+
+### 1.0.2
+- Added a **Launcher position** setting (bottom right, bottom left or middle right) so the button can be moved away from Torn's chat or other buttons.
+- Keyboard focus now stays inside the dashboard while it is open, and Escape only acts when it is open.
+- The script no longer runs inside embedded frames (`@noframes`).
+- Added the Terms of Service table to this README and the script header.
+- Internal tidy-up; documentation version numbers corrected.
+
+### 1.0.1
+- Previous release.
 
 ## Licence and attribution
 
